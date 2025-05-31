@@ -243,62 +243,45 @@ function displayBooks(books, containerId) {
 
 async function showBookDetails(isbn) {
     try {
+        // Fetch book details
         const response = await fetch(`${API_BASE_URL}/isbn/${isbn}`);
-        const book = await response.json();
         
+        // First check if response is OK
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText);
+        }
+
+        // Try to parse as JSON
+        const contentType = response.headers.get('content-type');
+        let book;
+        
+        if (contentType && contentType.includes('application/json')) {
+            book = await response.json();
+        } else {
+            // If not JSON, read as text and try to parse
+            const textResponse = await response.text();
+            try {
+                book = JSON.parse(textResponse);
+            } catch {
+                throw new Error(textResponse || 'Unknown error occurred');
+            }
+        }
+
         selectedBook = book;
         
-        // Update UI
+        // Update UI with book details
         document.getElementById('book-title').textContent = book.title;
         document.getElementById('book-author').textContent = `By ${book.author}`;
         
-        // Load reviews
+        // Fetch reviews
         const reviewsResponse = await fetch(`${API_BASE_URL}/review/${isbn}`);
-        let reviews = await reviewsResponse.json();
-        
-        // Handle different review formats
-        if (typeof reviews === 'string') {
-            document.getElementById('reviews-list').innerHTML = `<p>${reviews}</p>`;
-        } else {
-            document.getElementById('reviews-list').innerHTML = Object.values(reviews).map(review => `
-                <div class="review-item">
-                    <strong>${review.username}</strong>
-                    <p>${review.review}</p>
-                    ${currentUser === review.username ? 
-                        `<button class="edit-review-btn" data-review-id="${Object.keys(reviews).find(key => reviews[key].username === review.username)}">Edit</button>` : ''}
-                </div>
-            `).join('');
-            
-            // Add event listeners to edit buttons
-            document.querySelectorAll('.edit-review-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const reviewId = e.target.dataset.reviewId;
-                    const review = reviews[reviewId];
-                    
-                    document.getElementById('review-text').value = review.review;
-                    document.getElementById('submit-review').style.display = 'none';
-                    document.getElementById('update-review').style.display = 'inline-block';
-                    document.getElementById('delete-review').style.display = 'inline-block';
-                    
-                    // Store the review ID for update/delete
-                    document.getElementById('update-review').dataset.reviewId = reviewId;
-                    document.getElementById('delete-review').dataset.reviewId = reviewId;
-                });
-            });
-        }
-        
-        // Reset review form
-        document.getElementById('review-text').value = '';
-        document.getElementById('submit-review').style.display = 'inline-block';
-        document.getElementById('update-review').style.display = 'none';
-        document.getElementById('delete-review').style.display = 'none';
-        
-        showSection('book-details');
-    } catch (error) {
-        console.error('Error loading book details:', error);
-        alert('Error loading book details. Please try again.');
-    }
-}
+        let reviews;
+
+        // Handle reviews response
+        if (!reviewsResponse.ok) {
+            const reviewsError = await reviewsResponse.text();
+            document.getElementById('reviews-list
 
 // Review functions
 async function submitReview() {
