@@ -156,10 +156,11 @@ async function loadAllBooks() {
 
 async function performSearch() {
     const searchType = document.getElementById('search-type').value;
-    const searchTerm = document.getElementById('search-input').value;
+    const searchTerm = document.getElementById('search-input').value.trim();
+    const resultsContainer = document.getElementById('search-results');
 
     if (!searchTerm) {
-        alert('Please enter a search term');
+        resultsContainer.innerHTML = '<p>Please enter a search term</p>';
         return;
     }
 
@@ -175,28 +176,57 @@ async function performSearch() {
             case 'title':
                 endpoint = `/title/${encodeURIComponent(searchTerm)}`;
                 break;
+            default:
+                resultsContainer.innerHTML = '<p>Invalid search type</p>';
+                return;
         }
 
         const response = await fetch(`${API_BASE_URL}${endpoint}`);
         
-        if (response.ok) {
-            const result = await response.json();
-            // Handle different response formats
-            if (Array.isArray(result)) {
-                displayBooks(result, 'search-results');
-            } else if (typeof result === 'object') {
-                displayBooks([result], 'search-results');
-            } else {
-                // Handle string responses (from some endpoints)
-                document.getElementById('search-results').innerHTML = `<p>${result}</p>`;
-            }
-        } else {
-            const error = await response.text();
-            document.getElementById('search-results').innerHTML = `<p>${error}</p>`;
+        // First check if the response is OK (status 200-299)
+        if (!response.ok) {
+            // Try to get the error message
+            const errorText = await response.text();
+            resultsContainer.innerHTML = `<p>${errorText || 'Search failed'}</p>`;
+            return;
         }
+
+        // Check content type to determine how to parse
+        const contentType = response.headers.get('content-type');
+        let result;
+
+        if (contentType && contentType.includes('application/json')) {
+            result = await response.json();
+        } else {
+            // If not JSON, read as text
+            result = await response.text();
+            // Try to parse as JSON in case content-type header was wrong
+            try {
+                result = JSON.parse(result);
+            } catch {
+                // If parsing fails, treat as plain text
+                resultsContainer.innerHTML = `<p>${result}</p>`;
+                return;
+            }
+        }
+
+        // Handle the response data
+        if (Array.isArray(result)) {
+            displayBooks(result, 'search-results');
+        } else if (result && typeof result === 'object') {
+            displayBooks([result], 'search-results');
+        } else if (typeof result === 'string') {
+            resultsContainer.innerHTML = `<p>${result}</p>`;
+        } else {
+            resultsContainer.innerHTML = '<p>No results found</p>';
+        }
+
     } catch (error) {
         console.error('Search error:', error);
-        document.getElementById('search-results').innerHTML = '<p>Error performing search. Please try again.</p>';
+        resultsContainer.innerHTML = `
+            <p>Error performing search: ${error.message}</p>
+            <p>Please try again later.</p>
+        `;
     }
 }
 
