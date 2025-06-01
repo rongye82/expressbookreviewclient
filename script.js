@@ -238,20 +238,27 @@ async function performSearch() {
 function displayBooks(books, containerId) {
     const container = document.getElementById(containerId);
     
-    if (!books || books.length === 0) {
+    if (!books || (Array.isArray(books) && books.length === 0)) {
         container.innerHTML = '<p>No books found.</p>';
         return;
     }
 
+    // Convert to array if it's an object
+    if (!Array.isArray(books)) {
+        books = Object.values(books);
+    }
+
     container.innerHTML = books.map(book => {
-        // Handle both direct book objects and nested format
-        const bookData = book.title ? book : book[Object.keys(book)[0]];
-        const isbn = Object.keys(book)[0] || book.isbn;
-        
+        // Handle different response formats
+        const bookData = book.title ? book : (book.book || book[Object.keys(book)[0]]);
+        const isbn = book.isbn || Object.keys(book)[0];
+        const title = bookData?.title || 'Unknown Title';
+        const author = bookData?.author || 'Unknown Author';
+
         return `
             <div class="book-card" data-isbn="${isbn}">
-                <h3>${bookData.title}</h3>
-                <p>By ${bookData.author}</p>
+                <h3>${title}</h3>
+                <p>By ${author}</p>
                 <button class="view-details-btn">View Details</button>
             </div>
         `;
