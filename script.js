@@ -150,11 +150,20 @@ function logout() {
 async function loadAllBooks() {
     try {
         const response = await fetch(`${API_BASE_URL}/`);
-        const books = await response.json();
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('API response:', data); // For debugging
+        
+        // Extract books from the response
+        const books = data.books ? Object.values(data.books) : [];
         displayBooks(books, 'books-container');
     } catch (error) {
         console.error('Error loading books:', error);
-        document.getElementById('books-container').innerHTML = '<p>Error loading books. Please try again.</p>';
+        document.getElementById('books-container').innerHTML = 
+            `<p>Error loading books: ${error.message}</p>`;
     }
 }
 
@@ -226,35 +235,29 @@ async function performSearch() {
         `;
     }
 }
-
 function displayBooks(books, containerId) {
     const container = document.getElementById(containerId);
     
-    if (!books || (Array.isArray(books) && books.length === 0)) {
+    if (!books || books.length === 0) {
         container.innerHTML = '<p>No books found.</p>';
         return;
     }
 
-    if (!Array.isArray(books)) {
-        books = [books];
-    }
+    container.innerHTML = books.map(book => {
+        // Handle both direct book objects and nested format
+        const bookData = book.title ? book : book[Object.keys(book)[0]];
+        const isbn = Object.keys(book)[0] || book.isbn;
+        
+        return `
+            <div class="book-card" data-isbn="${isbn}">
+                <h3>${bookData.title}</h3>
+                <p>By ${bookData.author}</p>
+                <button class="view-details-btn">View Details</button>
+            </div>
+        `;
+    }).join('');
 
-    container.innerHTML = books.map(book => `
-        <div class="book-card" data-isbn="${Object.keys(book)[0] || book.isbn}">
-            <h3>${book.title || book[Object.keys(book)[0]].title}</h3>
-            <p>By ${book.author || book[Object.keys(book)[0]].author}</p>
-            <button class="view-details-btn">View Details</button>
-        </div>
-    `).join('');
-
-    document.querySelectorAll('.book-card').forEach(card => {
-        card.addEventListener('click', (e) => {
-            if (e.target.tagName === 'BUTTON') return;
-            const isbn = card.dataset.isbn;
-            showBookDetails(isbn);
-        });
-    });
-
+    // Add event listeners
     document.querySelectorAll('.view-details-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const isbn = e.target.closest('.book-card').dataset.isbn;
