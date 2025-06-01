@@ -269,78 +269,92 @@ async function showBookDetails(isbn) {
         
         if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(errorText);
+            throw new Error(errorText || 'Failed to fetch book details');
         }
 
-        const contentType = response.headers.get('content-type');
-        let book;
+        const bookData = await response.json();
         
-        if (contentType && contentType.includes('application/json')) {
-            book = await response.json();
-        } else {
-            const textResponse = await response.text();
-            try {
-                book = JSON.parse(textResponse);
-            } catch {
-                throw new Error(textResponse || 'Unknown error occurred');
-            }
+        // The API returns the book directly when fetching by ISBN
+        // No need to handle nested format here
+        if (!bookData || !bookData.title) {
+            throw new Error("Invalid book data received");
         }
 
-        selectedBook = book;
+        selectedBook = {
+            isbn: isbn,
+            title: bookData.title,
+            author: bookData.author,
+            reviews: bookData.reviews || {}
+        };
+
+        // Update UI
+        document.getElementById('book-title').textContent = selectedBook.title;
+        document.getElementById('book-author').textContent = `By ${selectedBook.author}`;
         
-        document.getElementById('book-title').textContent = book.title || book[Object.keys(book)[0]].title;
-        document.getElementById('book-author').textContent = `By ${book.author || book[Object.keys(book)[0]].author}`;
-        
-        // Clear previous review form
+        // Reset review form
         document.getElementById('review-text').value = '';
         document.getElementById('update-review').style.display = 'none';
         document.getElementById('delete-review').style.display = 'none';
         document.getElementById('submit-review').style.display = 'block';
         
-        // Fetch and display reviews
-        const reviewsResponse = await fetch(`${API_BASE_URL}/review/${isbn}`);
-        const reviewsList = document.getElementById('reviews-list');
-        reviewsList.innerHTML = '';
-        
-        if (reviewsResponse.ok) {
-            const reviews = await reviewsResponse.json();
-            
-            if (typeof reviews === 'object' && !Array.isArray(reviews)) {
-                for (const reviewId in reviews) {
-                    const review = reviews[reviewId];
-                    const reviewElement = document.createElement('div');
-                    reviewElement.className = 'review';
-                    reviewElement.innerHTML = `
-                        <p><strong>${review.username}</strong>: ${review.review}</p>
-                        ${review.username === currentUser ? 
-                            `<div class="review-actions">
-                                <button class="edit-review" data-review-id="${reviewId}">Edit</button>
-                            </div>` : ''}
-                    `;
-                    reviewsList.appendChild(reviewElement);
-                }
-                
-                // Add event listeners to edit buttons
-                document.querySelectorAll('.edit-review').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        const reviewId = e.target.dataset.reviewId;
-                        const reviewText = e.target.closest('.review').querySelector('p').textContent.split(': ')[1];
-                        document.getElementById('review-text').value = reviewText;
-                        document.getElementById('update-review').style.display = 'block';
-                        document.getElementById('delete-review').style.display = 'block';
-                        document.getElementById('submit-review').style.display = 'none';
-                        document.getElementById('update-review').dataset.reviewId = reviewId;
-                    });
-                });
-            }
-        } else {
-            reviewsList.innerHTML = '<p>No reviews yet.</p>';
-        }
+        // Load reviews
+        await loadBookReviews(isbn);
         
         showSection('book-details');
     } catch (error) {
         console.error('Error showing book details:', error);
-        alert('Error loading book details. Please try again.');
+        alert(`Error loading book details: ${error.message}`);
+    }
+}
+
+async function loadBookReviews(isbn) {
+    const reviewsList = document.getElementById('reviews-list');
+    reviewsList.innerHTML = '<p>Loading reviews...</p>';
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/review/${isbn}`);
+        
+        if (!response.ok) {
+            reviewsList.innerHTML = '<p>No reviews yet.</p>';
+            return;
+        }
+
+        const reviews = await response.json();
+        reviewsList.innerHTML = '';
+
+        if (reviews && typeof reviews === 'object' && Object.keys(reviews).length > 0) {
+            for (const reviewId in reviews) {
+                const review = reviews[reviewId];
+                const reviewElement = document.createElement('div');
+                reviewElement.className = 'review';
+                reviewElement.innerHTML = `
+                    <p><strong>${review.username}</strong>: ${review.review}</p>
+                    ${review.username === currentUser ? `
+                        <div class="review-actions">
+                            <button class="edit-review" data-review-id="${reviewId}">Edit</button>
+                        </div>
+                    ` : ''}
+                `;
+                reviewsList.appendChild(reviewElement);
+            }
+
+            // Add edit button listeners
+            document.querySelectorAll('.edit-review').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const reviewId = e.target.dataset.reviewId;
+                    const reviewText = e.target.closest('.review').querySelector('p').textContent.split(': ')[1];
+                    document.getElementById('review-text').value = reviewText;
+                    document.getElementById('update-review').style.display = 'block';
+                    document.getElementById('delete-review').style.display = 'block';
+                    document.getElementById('submit-review').style.display = 'none';
+                    document.getElementById('update-review').dataset.reviewId = reviewId;
+                });
+            });
+        } else {
+            reviewsList.innerHTML = '<p>No reviews yet.</p>';
+        }
+    } catch (error) {
+        reviewsList.innerHTML = '<p>Error loading reviews.</p>';
     }
 }
 
