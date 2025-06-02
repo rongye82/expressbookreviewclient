@@ -11,8 +11,8 @@
         <h1>Book Review App</h1>
         <div id="auth-section">
             <div id="login-form">
-                <input type="text" id="username" placeholder="Username">
-                <input type="password" id="password" placeholder="Password">
+                <input type="text" id="username" placeholder="Username" required>
+                <input type="password" id="password" placeholder="Password" required>
                 <button id="login-btn">Login</button>
                 <button id="register-btn">Register</button>
             </div>
@@ -24,29 +24,29 @@
     </header>
 
     <nav>
-        <button class="nav-btn" data-section="all-books">All Books</button>
+        <button class="nav-btn active" data-section="all-books">All Books</button>
         <button class="nav-btn" data-section="search-books">Search Books</button>
-        <button class="nav-btn" data-section="reviews-section" id="reviews-btn">My Reviews</button>
+        <button class="nav-btn" data-section="reviews-section" id="reviews-btn" style="display: none;">My Reviews</button>
     </nav>
 
     <main>
         <section id="all-books" class="active">
             <h2>All Books</h2>
-            <div id="books-container"></div>
+            <div id="books-container" class="books-grid"></div>
         </section>
 
         <section id="search-books">
             <h2>Search Books</h2>
-            <div class="search-options">
-                <select id="search-type">
+            <div class="search-controls">
+                <select id="search-type" class="search-select">
                     <option value="isbn">By ISBN</option>
                     <option value="author">By Author</option>
                     <option value="title">By Title</option>
                 </select>
-                <input type="text" id="search-input" placeholder="Enter search term">
-                <button id="search-btn">Search</button>
+                <input type="text" id="search-input" class="search-input" placeholder="Enter search term">
+                <button id="search-btn" class="search-button">Search</button>
             </div>
-            <div id="search-results"></div>
+            <div id="search-results" class="books-grid"></div>
         </section>
 
         <section id="reviews-section">
@@ -54,20 +54,24 @@
             <div id="reviews-container"></div>
         </section>
 
-        <section id="book-details" style="display: none;">
-            <h2 id="book-title"></h2>
-            <p id="book-author"></p>
+        <section id="book-details">
+            <div class="book-details-header">
+                <h2 id="book-title"></h2>
+                <p id="book-author"></p>
+            </div>
             <div id="book-reviews">
                 <h3>Reviews</h3>
                 <div id="reviews-list"></div>
                 <div id="review-form">
-                    <textarea id="review-text" placeholder="Write your review"></textarea>
-                    <button id="submit-review">Submit Review</button>
-                    <button id="update-review" style="display: none;">Update Review</button>
-                    <button id="delete-review" style="display: none;">Delete Review</button>
+                    <textarea id="review-text" placeholder="Write your review" required></textarea>
+                    <div class="review-buttons">
+                        <button id="submit-review" class="primary-btn">Submit Review</button>
+                        <button id="update-review" class="secondary-btn" style="display: none;">Update Review</button>
+                        <button id="delete-review" class="danger-btn" style="display: none;">Delete Review</button>
+                    </div>
                 </div>
             </div>
-            <button id="back-btn">Back to List</button>
+            <button id="back-btn" class="back-button">Back to List</button>
         </section>
     </main>
 
