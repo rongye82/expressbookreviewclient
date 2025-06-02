@@ -410,24 +410,37 @@ async function loadUserReviews() {
 
     try {
         const booksResponse = await fetch(`${API_BASE_URL}/`);
-        const books = await booksResponse.json();
+        const booksData = await booksResponse.json();
+        const books = booksData.books || booksData; // Handle both response formats
         let userReviews = [];
 
-        for (const isbn in books) {
-            const reviewResponse = await fetch(`${API_BASE_URL}/review/${isbn}`);
-            if (reviewResponse.ok) {
-                const reviews = await reviewResponse.json();
-                if (reviews && typeof reviews === 'object') {
-                    Object.entries(reviews).forEach(([reviewId, review]) => {
-                        if (review.username === currentUser) {
-                            userReviews.push({
-                                book: books[isbn],
-                                review: review,
-                                isbn: isbn
-                            });
+        // Get all ISBNs
+        const isbns = Object.keys(books);
+        
+        // Check reviews for each book
+        for (const isbn of isbns) {
+            try {
+                const reviewResponse = await fetch(`${API_BASE_URL}/review/${isbn}`);
+                if (reviewResponse.ok) {
+                    const reviews = await reviewResponse.json();
+                    
+                    // Handle case where reviews is an object
+                    if (reviews && typeof reviews === 'object') {
+                        for (const reviewId in reviews) {
+                            const review = reviews[reviewId];
+                            if (review.username === currentUser) {
+                                userReviews.push({
+                                    book: books[isbn],
+                                    review: review,
+                                    isbn: isbn,
+                                    reviewId: reviewId
+                                });
+                            }
                         }
-                    });
+                    }
                 }
+            } catch (error) {
+                console.error(`Error checking reviews for book ${isbn}:`, error);
             }
         }
 
@@ -459,7 +472,6 @@ async function loadUserReviews() {
             '<div class="error-message">Error loading your reviews. Please try again.</div>';
     }
 }
-
 // Utility Functions
 function showAlert(message, type = 'info') {
     alert(`${type.toUpperCase()}: ${message}`);
