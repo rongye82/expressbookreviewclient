@@ -406,45 +406,55 @@ async function handleDeleteReview() {
 }
 
 async function loadUserReviews() {
-    if (!currentUser) return;
+    if (!currentUser) {
+        document.getElementById('reviews-container').innerHTML = 
+            '<div class="info-message">Please login to view your reviews</div>';
+        return;
+    }
 
     try {
+        const container = document.getElementById('reviews-container');
+        container.innerHTML = '<div class="loading-message">Loading your reviews...</div>';
+
+        // First get all books
         const booksResponse = await fetch(`${API_BASE_URL}/`);
+        if (!booksResponse.ok) {
+            throw new Error('Failed to fetch books');
+        }
+
         const booksData = await booksResponse.json();
         const books = booksData.books || booksData; // Handle both response formats
+        const isbns = Object.keys(books);
         let userReviews = [];
 
-        // Get all ISBNs
-        const isbns = Object.keys(books);
-        
         // Check reviews for each book
         for (const isbn of isbns) {
             try {
                 const reviewResponse = await fetch(`${API_BASE_URL}/review/${isbn}`);
-                if (reviewResponse.ok) {
-                    const reviews = await reviewResponse.json();
-                    
-                    // Handle case where reviews is an object
-                    if (reviews && typeof reviews === 'object') {
-                        for (const reviewId in reviews) {
-                            const review = reviews[reviewId];
-                            if (review.username === currentUser) {
-                                userReviews.push({
-                                    book: books[isbn],
-                                    review: review,
-                                    isbn: isbn,
-                                    reviewId: reviewId
-                                });
-                            }
+                if (!reviewResponse.ok) continue; // Skip if no reviews
+
+                const reviews = await reviewResponse.json();
+                
+                // Handle different review formats
+                if (reviews && typeof reviews === 'object') {
+                    Object.entries(reviews).forEach(([reviewId, review]) => {
+                        if (review.username === currentUser) {
+                            userReviews.push({
+                                book: books[isbn],
+                                review: review,
+                                isbn: isbn,
+                                reviewId: reviewId
+                            });
                         }
-                    }
+                    });
                 }
             } catch (error) {
                 console.error(`Error checking reviews for book ${isbn}:`, error);
+                continue; // Skip to next book if error occurs
             }
         }
 
-        const container = document.getElementById('reviews-container');
+        // Display results
         if (userReviews.length === 0) {
             container.innerHTML = '<div class="info-message">You have not submitted any reviews yet.</div>';
         } else {
@@ -459,6 +469,7 @@ async function loadUserReviews() {
                 </div>
             `).join('');
 
+            // Add event listeners to edit buttons
             document.querySelectorAll('.edit-book-review').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const isbn = e.target.dataset.isbn;
@@ -468,8 +479,11 @@ async function loadUserReviews() {
         }
     } catch (error) {
         console.error('Error loading user reviews:', error);
-        document.getElementById('reviews-container').innerHTML = 
-            '<div class="error-message">Error loading your reviews. Please try again.</div>';
+        document.getElementById('reviews-container').innerHTML = `
+            <div class="error-message">
+                Error loading your reviews: ${error.message || 'Unknown error'}
+            </div>
+        `;
     }
 }
 // Utility Functions
